@@ -1,4 +1,5 @@
 let smoke = [];
+let ash = [];
 let randSide = Math.random(1)<0.5 ? "right" : "left";
 let chimneyL, chimneyR;
 
@@ -90,11 +91,11 @@ class Particle {
   move() {
     this.x += this.velX;
     this.y += this.velY;
-    this.alpha -= 2;
+    this.alpha -= 4;
   }
   
   show() { 
-    let size = map(this.alpha, 0, 200, 2, 30)
+    let size = map(this.alpha, 0, 200, 5, 30)
     fill(100, this.alpha);
     // stroke(100);
     noStroke();
@@ -117,7 +118,7 @@ function draw() {
   background(255);
   chimneyL.show();
   chimneyR.show();
-  for (let i=0; i<3; i++){
+  for (let i=0; i<5; i++){
     let p = new Particle(randSide, 1, 1);
     smoke.push(p);
   }
@@ -127,7 +128,18 @@ function draw() {
     smoke[i].show();
     
     if(smoke[i].finished()) {
+      ash.push(smoke[i]);
       smoke.splice(i, 1);
+    }
+  }
+  
+  for (let i = ash.length-1; i >= 0; i--) {
+    if (ash.length > 200){
+      ash.splice(0, 1);
+    } else {
+      fill(0);
+      point(ash[i].x, ash[i].y);
+      ash[i].alpha = 200;
     }
   }
 }
