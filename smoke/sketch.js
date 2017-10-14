@@ -1,5 +1,5 @@
 let smoke = [];
-let ash = [];
+// let ash = [];
 let randSide = Math.random(1)<0.5 ? "right" : "left";
 let chimneyL, chimneyR;
 
@@ -128,20 +128,20 @@ function draw() {
     smoke[i].show();
     
     if(smoke[i].finished()) {
-      ash.push(smoke[i]);
+      // ash.push(smoke[i]);
       smoke.splice(i, 1);
     }
   }
   
-  for (let i = ash.length-1; i >= 0; i--) {
-    if (ash.length > 200){
-      ash.splice(0, 1);
-    } else {
-      fill(0);
-      point(ash[i].x, ash[i].y);
-      ash[i].alpha = 200;
-    }
-  }
+  // for (let i = ash.length-1; i >= 0; i--) {
+    // if (ash.length > 200){
+      // ash.splice(0, 1);
+    // } else {
+      // fill(0);
+      // point(ash[i].x, ash[i].y);
+      // ash[i].alpha = 200;
+    // }
+  // }
 }
 
 function moreSmoke(){
