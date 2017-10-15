@@ -3,11 +3,17 @@ let lifespan = 300;
 let count = 0;
 let targetR;
 let barrierR;
-let loc;
+let loc, xOffset, yOffset;
+
 
 
 function target(vec, size) {
-	this.size = size;
+	if (size) {
+		this.size = size;
+	} else {
+		this.size = 20;
+	}
+	
 	if(vec){
 		this.pos = vec.copy();
 	} else {
@@ -15,17 +21,26 @@ function target(vec, size) {
 	}
 	
 	this.show = function() {
-		ellipse(this.pos.x, this.pos.y, (this.size) ? this.size : 20);
+		ellipse(this.pos.x, this.pos.y, this.size);
+	}
+	
+	this.move = function(xOff, yOff) {
+		let tVector = createVector(this.pos.x, this.pos.y);
+		let mouseVector = createVector(mouseX, mouseY);
+		if (p5.Vector.dist(tVector, mouseVector) < this.size) {
+			this.pos.x = mouseX-xOff;
+			this.pos.y = mouseY-yOff;
+		}
 	}
 }	
 
 function barrier(vec, h, w) {
 	this.h = h ? h : 20;
-	this.w = w ? w : width/2;
+	this.w = w ? w : width/3;
 	if(vec){
 		this.pos = vec.copy();
 	} else {
-		this.pos = createVector(width/4, height/2);
+		this.pos = createVector(width/3, height/2);
 	}
 	
 	this.show = function() {
@@ -36,47 +51,119 @@ function barrier(vec, h, w) {
 	
 
 
-function DNA(){
+function DNA(genes){
 	this.genes = [];
-	for (let i=0; i<lifespan; i++) {
-		this.genes[i] = p5.Vector.random2D();
-		this.genes[i].setMag(0.1);
+	if(genes) {
+		this.genes = genes;
+	} else {
+		for (let i=0; i<lifespan; i++) {
+			this.genes[i] = p5.Vector.random2D();
+			this.genes[i].setMag(0.2);
+		}
 	}
+		
+	this.crossOver = function(spouse) {
+		let newGenes = [];
+		let mid = floor(random(this.genes.length));
+		for (let i=0; i<this.genes.length; i++) {
+			if (i < mid){
+				newGenes[i] = this.genes[i];
+			} else {
+				newGenes[i] = spouse.genes[i];
+			}
+		}
+		return new DNA(newGenes);
+	}
+	
+	this.mutation = function() {
+    for (var i = 0; i < this.genes.length; i++) {
+      // if random number less than 0.01, new gene is then random vector
+      if (random(1) < 0.01) {
+        this.genes[i] = p5.Vector.random2D();
+        this.genes[i].setMag(0.2);
+      }
+    }
+	}
+
 }
 
 function population() {
 	this.rockets = [];
 	this.size = 25;
+	this.matingPool = [];
 	
 	for (let i=0; i<this.size; i++) {
 		this.rockets[i] = new Rocket();
 	}
 	
-	this.create = function() {
+	this.init = function() {
 		for (let i=0; i<this.size; i++) {
 			this.rockets[i].update();
 			this.rockets[i].show();
 		}
 	}
+
+  this.evaluate = function() {
+    // Iterate through all rockets and calcultes their fitness
+    for (var i = 0; i < this.size; i++) {
+			// Calculate Fitness
+			this.rockets[i].calculateFitness();
+    }
+		
+    this.matingPool = [];
+    // A rocket with high fitness will highly likely will be in the mating pool
+    for (var i = 0; i < this.size; i++) {
+      var n = this.rockets[i].fitness;
+      for (var j = 0; j < n; j++) {
+        this.matingPool.push(this.rockets[i]);
+      }
+    }
+	}	
+	
+	
+	this.selection = function() {
+		let newRockets = [];
+		for (let i=0; i<this.rockets.length; i++){
+			let parentAdna = random(this.matingPool).dna;
+			let parentBdna = random(this.matingPool).dna;
+			let childDna = parentAdna.crossOver(parentBdna);
+			childDna.mutation();
+			newRockets[i] = new Rocket(childDna);
+		}
+		this.rockets = newRockets;
+	}
 }
 
 class Rocket {
-	constructor()	{
+	constructor(dna)	{
 		this.pos = createVector(width/2, height);
-		this.acc = createVector();
-		this.vel = p5.Vector.random2D();
-		this.dna = new DNA();
+		this.acc = createVector(0, -1);
+		this.vel = createVector();
+		if(dna){
+			this.dna = dna;
+		} else {
+			this.dna = new DNA();
+		}
 		this.trail = [];
 		this.crashed = false;
+		this.reachedTarget = false;
+		this.fitness = 0;
 	}
 	
 	applyForce(force) {
 		this.acc.add(force);
 	}
 	
+	calculateFitness() {
+		let distance = dist(targetR.pos.x, targetR.pos.y, this.pos.x, this.pos.y);
+		this.fitness = map(distance, 0, height, 100, 0);
+		
+		if(this.crashed) { this.fitness = 0;}
+	}
+	
 	update() {
-		//Only move the rocket if not crashed.
-		if (!this.crashed){
+		// Only move the rocket if not crashed.
+		if (!this.crashed && !this.targetReached){
 			this.applyForce(this.dna.genes[count]);	
 			this.vel.add(this.acc);
 			this.pos.add(this.vel);
@@ -93,7 +180,11 @@ class Rocket {
 			}
 		}
 		
-		//Check for crashing with screen edges
+		if(this.targetReached) {
+			this.fitness *= 10;
+		}
+		
+		// Check for crashing with screen edges
 		if (this.pos.x < 5 || this.pos.x > width-5 || this.pos.y > height || this.pos.y < 10) {
 			this.crashed = true;
 		}
@@ -106,20 +197,27 @@ class Rocket {
 			this.crashed = true;
 		}
 		
-		
+		// Check if a rocket has hit the target
+		if (p5.Vector.dist(this.pos, targetR.pos) < 15) {
+			this.targetReached = true;
+		}
 	}
 	
 	show() {
+		
+		// draw rocket
+		let col = map(count, 0, lifespan, 0, 255);
 		push();
 		stroke(255);
-		fill(255, 100);
+		fill(col, col, col, 100);
 		translate(this.pos.x, this.pos.y);
 		rotate(this.vel.heading()+PI/2);
 		triangle(0, 0, 5, -15, 10, 0);
 		pop();
 		
+		// draw trail
 		for (let i= this.trail.length-1; i >=0; i--) {
-			stroke(255, 100);
+			stroke(col+i, col+i, col+i, 100);
 			let posT = this.trail[i];
 			point(posT.x, posT.y);	
 		}
@@ -127,33 +225,38 @@ class Rocket {
 }
 
 function setup() {
-	let canvas = createCanvas(400, 600);
-	// angleMode(DEGREES);
-	// frameRate(10);
+	let canvas = createCanvas(400, 400);
+	colorMode(HSB);
 	populationR = new population();
 	targetR = new target();
 	barrierR = new barrier();
-	
 }
 
 
 
 function draw() {
 	background(0);
-	populationR.create();
+	populationR.init();
 	count++;
 	
 	
-	//create a target
+	// create a target
 	targetR.show();
 	
-	//creata a barrier
+	// creata a barrier
 	barrierR.show();
 	
+	// if count reaches lifespan, reset population
 	if (count === lifespan) {
-		populationR = new population();
+		populationR.evaluate();
+		populationR.selection();
 		count = 0;
 	}
-	
+}
 
+function mouseDragged() {
+	// console.log("mouse dragged");
+	xOffset = mouseX-targetR.pos.x; 
+  yOffset = mouseY-targetR.pos.y;
+	targetR.move(xOffset, yOffset);
 }
