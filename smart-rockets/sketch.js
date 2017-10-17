@@ -212,7 +212,7 @@ class Rocket {
 		fill(col, col, col, 100);
 		translate(this.pos.x, this.pos.y);
 		rotate(this.vel.heading()+PI/2);
-		triangle(0, 0, 5, -15, 10, 0);
+		this.drawRocket();
 		pop();
 		
 		// draw trail
@@ -222,6 +222,16 @@ class Rocket {
 			point(posT.x, posT.y);	
 		}
 	}
+  
+  drawRocket() {
+    // triangle(0, 0, 5, -15, 10, 0);
+    beginShape();
+    vertex(0, 0);
+    vertex(-7, 7);
+    vertex(0, -10);
+    vertex(7, 7);
+    endShape(CLOSE);
+  }
 }
 
 function setup() {
