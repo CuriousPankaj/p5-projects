@@ -158,7 +158,7 @@ class Rocket {
 		let distance = dist(targetR.pos.x, targetR.pos.y, this.pos.x, this.pos.y);
 		this.fitness = map(distance, 0, height, 100, 0);
 		
-		if(this.crashed) { this.fitness = 0;}
+		if(this.crashed) { this.fitness = 1;}
 	}
 	
 	update() {
